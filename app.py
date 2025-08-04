@@ -89,10 +89,20 @@ def test_case_generator_tab(groq_client, model):
     col1, col2 = st.columns([3, 1])
     
     with col1:
-        code_input = st.text_area(
-            "TIBCO BW Process Code/XML",
-            height=300,
-            placeholder="""Paste your TIBCO BusinessWorks process XML or code here...
+        # Input method selection
+        input_method = st.radio(
+            "Choose input method:",
+            options=["Paste Code", "Upload File"],
+            horizontal=True
+        )
+        
+        code_input = ""
+        
+        if input_method == "Paste Code":
+            code_input = st.text_area(
+                "TIBCO BW Process Code/XML",
+                height=300,
+                placeholder="""Paste your TIBCO BusinessWorks process XML or code here...
 
 Example:
 <pd:ProcessDefinition xmlns:pd="http://xmlns.tibco.com/bw/process/2003">
@@ -100,8 +110,42 @@ Example:
     <pd:startName>Start</pd:startName>
     <!-- Your TIBCO process definition -->
 </pd:ProcessDefinition>""",
-            key="test_case_input"
-        )
+                key="test_case_input"
+            )
+        else:
+            uploaded_file = st.file_uploader(
+                "Upload TIBCO file",
+                type=['xml', 'txt', 'bwp', 'process'],
+                help="Upload your TIBCO BusinessWorks process file (XML, BWP, or text format)"
+            )
+            
+            if uploaded_file is not None:
+                try:
+                    # Read file content
+                    file_content = uploaded_file.read()
+                    
+                    # Try to decode as text
+                    try:
+                        code_input = file_content.decode('utf-8')
+                    except UnicodeDecodeError:
+                        code_input = file_content.decode('latin-1')
+                    
+                    # Display file info
+                    file_size = len(code_input)
+                    st.info(f"📁 File loaded: {uploaded_file.name} ({file_size:,} characters)")
+                    
+                    # Show preview for large files
+                    if file_size > 5000:
+                        st.warning(f"⚠️ Large file detected ({file_size:,} characters). Preview shown below:")
+                        with st.expander("📄 File Preview (first 2000 characters)"):
+                            st.code(code_input[:2000] + "..." if len(code_input) > 2000 else code_input, language="xml")
+                    else:
+                        with st.expander("📄 File Content"):
+                            st.code(code_input, language="xml")
+                            
+                except Exception as e:
+                    st.error(f"Error reading file: {str(e)}")
+                    code_input = ""
     
     with col2:
         st.markdown("### 🎯 Test Case Types")
@@ -169,10 +213,21 @@ def complexity_analyzer_tab(groq_client, model):
     col1, col2 = st.columns([3, 1])
     
     with col1:
-        code_input = st.text_area(
-            "TIBCO Code/Process Definition",
-            height=300,
-            placeholder="""Paste your TIBCO BusinessWorks code, process definition, or XML here...
+        # Input method selection
+        input_method = st.radio(
+            "Choose input method:",
+            options=["Paste Code", "Upload File"],
+            horizontal=True,
+            key="complexity_input_method"
+        )
+        
+        code_input = ""
+        
+        if input_method == "Paste Code":
+            code_input = st.text_area(
+                "TIBCO Code/Process Definition",
+                height=300,
+                placeholder="""Paste your TIBCO BusinessWorks code, process definition, or XML here...
 
 The analyzer will examine:
 - Nested logic complexity
@@ -180,8 +235,43 @@ The analyzer will examine:
 - Anti-patterns
 - Performance implications
 - Maintainability issues""",
-            key="complexity_input"
-        )
+                key="complexity_input"
+            )
+        else:
+            uploaded_file = st.file_uploader(
+                "Upload TIBCO file for analysis",
+                type=['xml', 'txt', 'bwp', 'process'],
+                help="Upload your TIBCO BusinessWorks process file (XML, BWP, or text format)",
+                key="complexity_file_upload"
+            )
+            
+            if uploaded_file is not None:
+                try:
+                    # Read file content
+                    file_content = uploaded_file.read()
+                    
+                    # Try to decode as text
+                    try:
+                        code_input = file_content.decode('utf-8')
+                    except UnicodeDecodeError:
+                        code_input = file_content.decode('latin-1')
+                    
+                    # Display file info
+                    file_size = len(code_input)
+                    st.info(f"📁 File loaded: {uploaded_file.name} ({file_size:,} characters)")
+                    
+                    # Show preview for large files
+                    if file_size > 5000:
+                        st.warning(f"⚠️ Large file detected ({file_size:,} characters). Preview shown below:")
+                        with st.expander("📄 File Preview (first 2000 characters)"):
+                            st.code(code_input[:2000] + "..." if len(code_input) > 2000 else code_input, language="xml")
+                    else:
+                        with st.expander("📄 File Content"):
+                            st.code(code_input, language="xml")
+                            
+                except Exception as e:
+                    st.error(f"Error reading file: {str(e)}")
+                    code_input = ""
     
     with col2:
         st.markdown("### 🔍 Analysis Focus")
