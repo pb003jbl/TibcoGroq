@@ -13,11 +13,7 @@ st.set_page_config(
 
 # Initialize Groq client
 @st.cache_resource
-def get_groq_client():
-    api_key = os.getenv("GROQ_API_KEY", "")
-    if not api_key:
-        st.error("⚠️ GROQ_API_KEY environment variable not found. Please set your Groq API key.")
-        st.stop()
+def get_groq_client(api_key):
     return GroqClient(api_key)
 
 def main():
@@ -27,6 +23,20 @@ def main():
     
     # Sidebar for model selection
     st.sidebar.header("⚙️ Configuration")
+    
+    # API Key input
+    default_api_key = os.getenv("GROQ_API_KEY", "")
+    api_key = st.sidebar.text_input(
+        "Groq API Key",
+        value=default_api_key,
+        type="password",
+        help="Enter your Groq API key. Get one from https://console.groq.com/keys"
+    )
+    
+    if not api_key:
+        st.sidebar.error("⚠️ Please enter your Groq API key to use the application")
+        st.error("⚠️ Groq API key is required. Please enter it in the sidebar.")
+        st.stop()
     
     model_options = [
         "llama-3.3-70b-versatile",
@@ -45,6 +55,10 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 📋 Instructions")
     st.sidebar.markdown("""
+    **Getting Started:**
+    - Enter your Groq API key above (get one from console.groq.com)
+    - Select your preferred AI model
+    
     **Test Case Generator:**
     - Paste your TIBCO BW process XML or code
     - Generate comprehensive test scenarios
@@ -59,7 +73,7 @@ def main():
     # Main tabs
     tab1, tab2 = st.tabs(["🧪 Test Case Generator", "📊 Code Complexity Analyzer"])
     
-    groq_client = get_groq_client()
+    groq_client = get_groq_client(api_key)
     
     with tab1:
         test_case_generator_tab(groq_client, selected_model)
