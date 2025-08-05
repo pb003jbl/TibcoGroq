@@ -724,5 +724,5 @@ Migration assistance includes:
             except Exception as e:
                 st.error(f"❌ Error analyzing migration: {str(e)}")
 
-        if __name__ == "__main__":
+if __name__ == "__main__":
     main()
