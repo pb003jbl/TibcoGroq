@@ -3,3 +3,6 @@ jsonschema
 narwhals
 packaging
 typing-extensions
+groq>=0.30.0
+streamlit>=1.47.1
+
