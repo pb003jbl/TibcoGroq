@@ -71,7 +71,13 @@ def main():
     """)
     
     # Main tabs
-    tab1, tab2 = st.tabs(["🧪 Test Case Generator", "📊 Code Complexity Analyzer"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "🧪 Test Case Generator", 
+        "📊 Code Complexity Analyzer",
+        "🔧 Process Optimizer",
+        "📋 Documentation Generator", 
+        "🚀 Migration Assistant"
+    ])
     
     groq_client = get_groq_client(api_key)
     
@@ -80,6 +86,15 @@ def main():
     
     with tab2:
         complexity_analyzer_tab(groq_client, selected_model)
+    
+    with tab3:
+        process_optimizer_tab(groq_client, selected_model)
+    
+    with tab4:
+        documentation_generator_tab(groq_client, selected_model)
+    
+    with tab5:
+        migration_assistant_tab(groq_client, selected_model)
 
 def test_case_generator_tab(groq_client, model):
     st.header("🧪 Test Case Generator")
@@ -296,6 +311,386 @@ The analyzer will examine:
     
     # Analyze button
     if st.button("🔬 Analyze Code Complexity", type="primary", use_container_width=True):
+
+
+def process_optimizer_tab(groq_client, model):
+    st.header("🔧 Process Optimizer")
+    st.markdown("Optimize TIBCO processes for better performance, efficiency, and maintainability")
+    
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        # Input method selection
+        input_method = st.radio(
+            "Choose input method:",
+            options=["Paste Code", "Upload File"],
+            horizontal=True,
+            key="optimizer_input_method"
+        )
+        
+        code_input = ""
+        
+        if input_method == "Paste Code":
+            code_input = st.text_area(
+                "TIBCO Process Definition",
+                height=300,
+                placeholder="""Paste your TIBCO BusinessWorks process definition here...
+
+The optimizer will analyze and suggest improvements for:
+- Performance bottlenecks
+- Resource utilization
+- Error handling patterns
+- Best practice implementations
+- Memory optimization
+- Connection pooling""",
+                key="optimizer_input"
+            )
+        else:
+            uploaded_file = st.file_uploader(
+                "Upload TIBCO file for optimization",
+                type=['xml', 'txt', 'bwp', 'process'],
+                key="optimizer_file_upload"
+            )
+            
+            if uploaded_file is not None:
+                try:
+                    file_content = uploaded_file.read()
+                    try:
+                        code_input = file_content.decode('utf-8')
+                    except UnicodeDecodeError:
+                        code_input = file_content.decode('latin-1')
+                    
+                    file_size = len(code_input)
+                    st.info(f"📁 File loaded: {uploaded_file.name} ({file_size:,} characters)")
+                    
+                    if file_size > 5000:
+                        st.warning(f"⚠️ Large file detected ({file_size:,} characters)")
+                        with st.expander("📄 File Preview"):
+                            st.code(code_input[:2000] + "..." if len(code_input) > 2000 else code_input, language="xml")
+                    else:
+                        with st.expander("📄 File Content"):
+                            st.code(code_input, language="xml")
+                            
+                except Exception as e:
+                    st.error(f"Error reading file: {str(e)}")
+                    code_input = ""
+    
+    with col2:
+        st.markdown("### ⚡ Optimization Areas")
+        optimization_areas = st.multiselect(
+            "Select optimization focus:",
+            options=[
+                "Performance Tuning",
+                "Memory Optimization",
+                "Error Handling",
+                "Connection Pooling",
+                "Resource Management",
+                "Async Processing",
+                "Caching Strategies",
+                "Load Balancing"
+            ],
+            default=["Performance Tuning", "Memory Optimization", "Error Handling"]
+        )
+        
+        optimization_level = st.selectbox(
+            "Optimization Level",
+            options=["Conservative", "Moderate", "Aggressive"],
+            index=1,
+            help="Conservative: Safe optimizations only\nModerate: Balanced approach\nAggressive: Maximum performance gains"
+        )
+        
+        include_code_examples = st.checkbox(
+            "Include code examples",
+            value=True,
+            help="Generate optimized code snippets"
+        )
+    
+    if st.button("⚡ Optimize Process", type="primary", use_container_width=True):
+        if not code_input.strip():
+            st.error("⚠️ Please provide TIBCO code to optimize")
+            return
+        
+        if not optimization_areas:
+            st.error("⚠️ Please select at least one optimization area")
+            return
+        
+        with st.spinner(f"🤖 Analyzing and optimizing using {model}..."):
+            try:
+                optimization_result = groq_client.optimize_process(
+                    code_input,
+                    optimization_areas,
+                    optimization_level,
+                    include_code_examples,
+                    model
+                )
+                
+                if optimization_result:
+                    st.success("✅ Process optimization completed!")
+                    st.markdown("## ⚡ Optimization Recommendations")
+                    st.markdown(optimization_result)
+                else:
+                    st.error("❌ Failed to optimize process. Please try again.")
+                    
+            except Exception as e:
+                st.error(f"❌ Error optimizing process: {str(e)}")
+
+def documentation_generator_tab(groq_client, model):
+    st.header("📋 Documentation Generator")
+    st.markdown("Generate comprehensive documentation for TIBCO processes and components")
+    
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        input_method = st.radio(
+            "Choose input method:",
+            options=["Paste Code", "Upload File"],
+            horizontal=True,
+            key="docs_input_method"
+        )
+        
+        code_input = ""
+        
+        if input_method == "Paste Code":
+            code_input = st.text_area(
+                "TIBCO Code/Process Definition",
+                height=300,
+                placeholder="""Paste your TIBCO BusinessWorks code here...
+
+Generate documentation including:
+- Process overview and purpose
+- Input/output specifications
+- Component descriptions
+- Data flow diagrams
+- Error handling procedures
+- Deployment guidelines""",
+                key="docs_input"
+            )
+        else:
+            uploaded_file = st.file_uploader(
+                "Upload TIBCO file for documentation",
+                type=['xml', 'txt', 'bwp', 'process'],
+                key="docs_file_upload"
+            )
+            
+            if uploaded_file is not None:
+                try:
+                    file_content = uploaded_file.read()
+                    try:
+                        code_input = file_content.decode('utf-8')
+                    except UnicodeDecodeError:
+                        code_input = file_content.decode('latin-1')
+                    
+                    file_size = len(code_input)
+                    st.info(f"📁 File loaded: {uploaded_file.name} ({file_size:,} characters)")
+                    
+                    if file_size > 5000:
+                        with st.expander("📄 File Preview"):
+                            st.code(code_input[:2000] + "..." if len(code_input) > 2000 else code_input, language="xml")
+                    else:
+                        with st.expander("📄 File Content"):
+                            st.code(code_input, language="xml")
+                            
+                except Exception as e:
+                    st.error(f"Error reading file: {str(e)}")
+                    code_input = ""
+    
+    with col2:
+        st.markdown("### 📖 Documentation Types")
+        doc_types = st.multiselect(
+            "Select documentation to generate:",
+            options=[
+                "Technical Overview",
+                "API Documentation",
+                "Deployment Guide",
+                "User Manual",
+                "Troubleshooting Guide",
+                "Configuration Reference",
+                "Performance Tuning",
+                "Security Guidelines"
+            ],
+            default=["Technical Overview", "API Documentation", "Deployment Guide"]
+        )
+        
+        doc_format = st.selectbox(
+            "Documentation Format",
+            options=["Markdown", "HTML", "Plain Text", "Confluence"],
+            index=0
+        )
+        
+        include_diagrams = st.checkbox(
+            "Include ASCII diagrams",
+            value=True,
+            help="Generate ASCII flow diagrams where applicable"
+        )
+    
+    if st.button("📝 Generate Documentation", type="primary", use_container_width=True):
+        if not code_input.strip():
+            st.error("⚠️ Please provide TIBCO code to document")
+            return
+        
+        if not doc_types:
+            st.error("⚠️ Please select at least one documentation type")
+            return
+        
+        with st.spinner(f"🤖 Generating documentation using {model}..."):
+            try:
+                documentation = groq_client.generate_documentation(
+                    code_input,
+                    doc_types,
+                    doc_format,
+                    include_diagrams,
+                    model
+                )
+                
+                if documentation:
+                    st.success("✅ Documentation generated successfully!")
+                    st.markdown("## 📋 Generated Documentation")
+                    st.markdown(documentation)
+                    
+                    # Download button
+                    st.download_button(
+                        label="💾 Download Documentation",
+                        data=documentation,
+                        file_name=f"tibco_documentation.{doc_format.lower()}",
+                        mime="text/plain"
+                    )
+                else:
+                    st.error("❌ Failed to generate documentation. Please try again.")
+                    
+            except Exception as e:
+                st.error(f"❌ Error generating documentation: {str(e)}")
+
+def migration_assistant_tab(groq_client, model):
+    st.header("🚀 Migration Assistant")
+    st.markdown("Assist with TIBCO version migrations, platform transitions, and modernization")
+    
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        migration_type = st.selectbox(
+            "Migration Type",
+            options=[
+                "TIBCO BW 5.x to 6.x",
+                "TIBCO BW 6.x to Container Edition",
+                "Legacy to Cloud Native",
+                "On-premise to Cloud",
+                "Custom Migration"
+            ],
+            index=0
+        )
+        
+        input_method = st.radio(
+            "Choose input method:",
+            options=["Paste Code", "Upload File"],
+            horizontal=True,
+            key="migration_input_method"
+        )
+        
+        code_input = ""
+        
+        if input_method == "Paste Code":
+            code_input = st.text_area(
+                "Legacy TIBCO Code",
+                height=300,
+                placeholder="""Paste your legacy TIBCO code here...
+
+Migration assistance includes:
+- Compatibility analysis
+- Deprecated feature identification
+- Modern equivalent suggestions
+- Migration roadmap
+- Risk assessment
+- Modernization opportunities""",
+                key="migration_input"
+            )
+        else:
+            uploaded_file = st.file_uploader(
+                "Upload legacy TIBCO file",
+                type=['xml', 'txt', 'bwp', 'process'],
+                key="migration_file_upload"
+            )
+            
+            if uploaded_file is not None:
+                try:
+                    file_content = uploaded_file.read()
+                    try:
+                        code_input = file_content.decode('utf-8')
+                    except UnicodeDecodeError:
+                        code_input = file_content.decode('latin-1')
+                    
+                    file_size = len(code_input)
+                    st.info(f"📁 File loaded: {uploaded_file.name} ({file_size:,} characters)")
+                    
+                    if file_size > 5000:
+                        with st.expander("📄 File Preview"):
+                            st.code(code_input[:2000] + "..." if len(code_input) > 2000 else code_input, language="xml")
+                    else:
+                        with st.expander("📄 File Content"):
+                            st.code(code_input, language="xml")
+                            
+                except Exception as e:
+                    st.error(f"Error reading file: {str(e)}")
+                    code_input = ""
+    
+    with col2:
+        st.markdown("### 🔄 Migration Focus")
+        migration_areas = st.multiselect(
+            "Select migration areas:",
+            options=[
+                "API Compatibility",
+                "Configuration Changes",
+                "Deprecated Components",
+                "Performance Impact",
+                "Security Updates",
+                "Cloud Readiness",
+                "Container Support",
+                "DevOps Integration"
+            ],
+            default=["API Compatibility", "Configuration Changes", "Deprecated Components"]
+        )
+        
+        migration_priority = st.selectbox(
+            "Migration Priority",
+            options=["Critical Issues Only", "High Priority", "Comprehensive"],
+            index=1
+        )
+        
+        include_migration_code = st.checkbox(
+            "Generate migration code",
+            value=True,
+            help="Provide updated code examples"
+        )
+    
+    if st.button("🚀 Analyze Migration", type="primary", use_container_width=True):
+        if not code_input.strip():
+            st.error("⚠️ Please provide legacy TIBCO code to analyze")
+            return
+        
+        if not migration_areas:
+            st.error("⚠️ Please select at least one migration area")
+            return
+        
+        with st.spinner(f"🤖 Analyzing migration requirements using {model}..."):
+            try:
+                migration_analysis = groq_client.analyze_migration(
+                    code_input,
+                    migration_type,
+                    migration_areas,
+                    migration_priority,
+                    include_migration_code,
+                    model
+                )
+                
+                if migration_analysis:
+                    st.success("✅ Migration analysis completed!")
+                    st.markdown("## 🚀 Migration Analysis & Recommendations")
+                    st.markdown(migration_analysis)
+                else:
+                    st.error("❌ Failed to analyze migration. Please try again.")
+                    
+            except Exception as e:
+                st.error(f"❌ Error analyzing migration: {str(e)}")
+
         if not code_input.strip():
             st.error("⚠️ Please provide TIBCO code to analyze")
             return
