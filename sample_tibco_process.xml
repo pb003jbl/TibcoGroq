@@ -1,0 +1,364 @@
+
+<?xml version="1.0" encoding="UTF-8"?>
+<pd:ProcessDefinition xmlns:xsl="http://www.w3.org/1999/XSL/Transform" 
+                     xmlns:pd="http://xmlns.tibco.com/bw/process/2003" 
+                     xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                     xmlns:tib="http://www.tibco.com/bw/xslt/custom-functions">
+    
+    <pd:name>CustomerOrderProcessing</pd:name>
+    <pd:startName>ReceiveOrder</pd:startName>
+    <pd:startType>
+        <xsd:element name="CustomerOrder">
+            <xsd:complexType>
+                <xsd:sequence>
+                    <xsd:element name="orderId" type="xsd:string"/>
+                    <xsd:element name="customerId" type="xsd:string"/>
+                    <xsd:element name="productId" type="xsd:string"/>
+                    <xsd:element name="quantity" type="xsd:int"/>
+                    <xsd:element name="priority" type="xsd:string"/>
+                    <xsd:element name="orderDate" type="xsd:dateTime"/>
+                </xsd:sequence>
+            </xsd:complexType>
+        </xsd:element>
+    </pd:startType>
+    
+    <pd:endName>ProcessComplete</pd:endName>
+    <pd:endType>
+        <xsd:element name="OrderResponse">
+            <xsd:complexType>
+                <xsd:sequence>
+                    <xsd:element name="orderId" type="xsd:string"/>
+                    <xsd:element name="status" type="xsd:string"/>
+                    <xsd:element name="message" type="xsd:string"/>
+                    <xsd:element name="estimatedDelivery" type="xsd:dateTime"/>
+                </xsd:sequence>
+            </xsd:complexType>
+        </xsd:element>
+    </pd:endType>
+    
+    <!-- Process Variables -->
+    <pd:processVariables>
+        <customer>
+            <xsd:element name="Customer">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="id" type="xsd:string"/>
+                        <xsd:element name="name" type="xsd:string"/>
+                        <xsd:element name="tier" type="xsd:string"/>
+                        <xsd:element name="creditLimit" type="xsd:decimal"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+        </customer>
+        <inventory>
+            <xsd:element name="Inventory">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="productId" type="xsd:string"/>
+                        <xsd:element name="availableQuantity" type="xsd:int"/>
+                        <xsd:element name="price" type="xsd:decimal"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+        </inventory>
+    </pd:processVariables>
+    
+    <!-- Process Flow -->
+    <pd:group name="OrderValidation">
+        <pd:type>com.tibco.pe.core.LoopGroup</pd:type>
+        <pd:resourceType>ae.process.group</pd:resourceType>
+        <pd:x>150</pd:x>
+        <pd:y>100</pd:y>
+        <pd:width>400</pd:width>
+        <pd:height>200</pd:height>
+        
+        <!-- Customer Validation -->
+        <pd:activity name="ValidateCustomer">
+            <pd:type>com.tibco.plugin.jdbc.JDBCQueryActivity</pd:type>
+            <pd:resourceType>ae.activities.JDBCQueryActivity</pd:resourceType>
+            <pd:x>200</pd:x>
+            <pd:y>150</pd:y>
+            <config>
+                <timeout>30</timeout>
+                <maxRows>1</maxRows>
+                <emptyResultSetException>true</emptyResultSetException>
+                <jdbcSharedConfig>/SharedResources/Database/CustomerDB.sharedjdbc</jdbcSharedConfig>
+                <statement>SELECT id, name, tier, credit_limit 
+                          FROM customers 
+                          WHERE id = ?
+                          AND status = 'ACTIVE'</statement>
+                <parameter>
+                    <queryString>$_processContext/ns:ProcessContext/CustomerOrder/customerId</queryString>
+                    <dataType>VARCHAR</dataType>
+                </parameter>
+            </config>
+        </pd:activity>
+        
+        <!-- Inventory Check -->
+        <pd:activity name="CheckInventory">
+            <pd:type>com.tibco.plugin.jdbc.JDBCQueryActivity</pd:type>
+            <pd:resourceType>ae.activities.JDBCQueryActivity</pd:resourceType>
+            <pd:x>350</pd:x>
+            <pd:y>150</pd:y>
+            <config>
+                <timeout>30</timeout>
+                <maxRows>1</maxRows>
+                <emptyResultSetException>true</emptyResultSetException>
+                <jdbcSharedConfig>/SharedResources/Database/InventoryDB.sharedjdbc</jdbcSharedConfig>
+                <statement>SELECT product_id, available_quantity, price 
+                          FROM inventory 
+                          WHERE product_id = ?
+                          AND available_quantity >= ?</statement>
+                <parameter>
+                    <queryString>$_processContext/ns:ProcessContext/CustomerOrder/productId</queryString>
+                    <dataType>VARCHAR</dataType>
+                </parameter>
+                <parameter>
+                    <queryString>$_processContext/ns:ProcessContext/CustomerOrder/quantity</queryString>
+                    <dataType>INTEGER</dataType>
+                </parameter>
+            </config>
+        </pd:activity>
+    </pd:group>
+    
+    <!-- Business Logic -->
+    <pd:group name="BusinessRules">
+        <pd:type>com.tibco.pe.core.LoopGroup</pd:type>
+        <pd:resourceType>ae.process.group</pd:resourceType>
+        <pd:x>150</pd:x>
+        <pd:y>350</pd:y>
+        <pd:width>500</pd:width>
+        <pd:height>300</pd:height>
+        
+        <!-- Priority Processing -->
+        <pd:activity name="ProcessPriority">
+            <pd:type>com.tibco.pe.core.AssignActivity</pd:type>
+            <pd:resourceType>ae.activities.assignActivity</pd:resourceType>
+            <pd:x>200</pd:x>
+            <pd:y>400</pd:y>
+            <config>
+                <variableName>processingTime</variableName>
+                <variableElement>
+                    <xsd:element name="ProcessingTime" type="xsd:int"/>
+                </variableElement>
+            </config>
+            <pd:inputBindings>
+                <xsl:choose>
+                    <xsl:when test="$_processContext/ns:ProcessContext/CustomerOrder/priority = 'URGENT'">
+                        <ProcessingTime>1</ProcessingTime>
+                    </xsl:when>
+                    <xsl:when test="$_processContext/ns:ProcessContext/CustomerOrder/priority = 'HIGH'">
+                        <ProcessingTime>2</ProcessingTime>
+                    </xsl:when>
+                    <xsl:when test="$_processContext/ns:ProcessContext/CustomerOrder/priority = 'NORMAL'">
+                        <ProcessingTime>5</ProcessingTime>
+                    </xsl:when>
+                    <xsl:otherwise>
+                        <ProcessingTime>7</ProcessingTime>
+                    </xsl:otherwise>
+                </xsl:choose>
+            </pd:inputBindings>
+        </pd:activity>
+        
+        <!-- Credit Check -->
+        <pd:activity name="CreditCheck">
+            <pd:type>com.tibco.pe.core.AssignActivity</pd:type>
+            <pd:resourceType>ae.activities.assignActivity</pd:resourceType>
+            <pd:x>350</pd:x>
+            <pd:y>400</pd:y>
+            <config>
+                <variableName>creditApproved</variableName>
+                <variableElement>
+                    <xsd:element name="CreditApproved" type="xsd:boolean"/>
+                </variableElement>
+            </config>
+            <pd:inputBindings>
+                <CreditApproved>
+                    <xsl:value-of select="($CheckInventory/resultSet/Record[1]/price * $_processContext/ns:ProcessContext/CustomerOrder/quantity) &lt;= $ValidateCustomer/resultSet/Record[1]/credit_limit"/>
+                </CreditApproved>
+            </pd:inputBindings>
+        </pd:activity>
+        
+        <!-- Conditional Processing -->
+        <pd:activity name="ConditionalProcessor">
+            <pd:type>com.tibco.pe.core.ChoiceActivity</pd:type>
+            <pd:resourceType>ae.activities.choice</pd:resourceType>
+            <pd:x>500</pd:x>
+            <pd:y>450</pd:y>
+            <config>
+                <choices>
+                    <choice>
+                        <condition>$creditApproved/CreditApproved = true() and $CheckInventory/resultSet/Record[1]/available_quantity >= $_processContext/ns:ProcessContext/CustomerOrder/quantity</condition>
+                        <activityName>ProcessOrder</activityName>
+                    </choice>
+                    <choice>
+                        <condition>$creditApproved/CreditApproved = false()</condition>
+                        <activityName>CreditRejection</activityName>
+                    </choice>
+                    <choice>
+                        <condition>otherwise</condition>
+                        <activityName>InventoryError</activityName>
+                    </choice>
+                </choices>
+            </config>
+        </pd:activity>
+    </pd:group>
+    
+    <!-- Order Processing Activities -->
+    <pd:activity name="ProcessOrder">
+        <pd:type>com.tibco.plugin.jdbc.JDBCUpdateActivity</pd:type>
+        <pd:resourceType>ae.activities.JDBCUpdateActivity</pd:resourceType>
+        <pd:x>200</pd:x>
+        <pd:y>700</pd:y>
+        <config>
+            <timeout>60</timeout>
+            <commit>true</commit>
+            <jdbcSharedConfig>/SharedResources/Database/OrderDB.sharedjdbc</jdbcSharedConfig>
+            <statement>INSERT INTO orders (order_id, customer_id, product_id, quantity, status, order_date, estimated_delivery)
+                      VALUES (?, ?, ?, ?, 'CONFIRMED', ?, ?)</statement>
+            <parameter>
+                <queryString>$_processContext/ns:ProcessContext/CustomerOrder/orderId</queryString>
+                <dataType>VARCHAR</dataType>
+            </parameter>
+            <parameter>
+                <queryString>$_processContext/ns:ProcessContext/CustomerOrder/customerId</queryString>
+                <dataType>VARCHAR</dataType>
+            </parameter>
+            <parameter>
+                <queryString>$_processContext/ns:ProcessContext/CustomerOrder/productId</queryString>
+                <dataType>VARCHAR</dataType>
+            </parameter>
+            <parameter>
+                <queryString>$_processContext/ns:ProcessContext/CustomerOrder/quantity</queryString>
+                <dataType>INTEGER</dataType>
+            </parameter>
+            <parameter>
+                <queryString>$_processContext/ns:ProcessContext/CustomerOrder/orderDate</queryString>
+                <dataType>TIMESTAMP</dataType>
+            </parameter>
+            <parameter>
+                <queryString>tib:add-to-date($_processContext/ns:ProcessContext/CustomerOrder/orderDate, 0, 0, $processingTime/ProcessingTime, 0, 0, 0)</queryString>
+                <dataType>TIMESTAMP</dataType>
+            </parameter>
+        </config>
+    </pd:activity>
+    
+    <!-- Error Handling Activities -->
+    <pd:activity name="CreditRejection">
+        <pd:type>com.tibco.pe.core.AssignActivity</pd:type>
+        <pd:resourceType>ae.activities.assignActivity</pd:resourceType>
+        <pd:x>350</pd:x>
+        <pd:y>700</pd:y>
+        <config>
+            <variableName>errorResponse</variableName>
+            <variableElement>
+                <xsd:element name="ErrorResponse">
+                    <xsd:complexType>
+                        <xsd:sequence>
+                            <xsd:element name="status" type="xsd:string"/>
+                            <xsd:element name="message" type="xsd:string"/>
+                        </xsd:sequence>
+                    </xsd:complexType>
+                </xsd:element>
+            </variableElement>
+        </config>
+        <pd:inputBindings>
+            <ErrorResponse>
+                <status>REJECTED</status>
+                <message>Credit limit exceeded for customer</message>
+            </ErrorResponse>
+        </pd:inputBindings>
+    </pd:activity>
+    
+    <pd:activity name="InventoryError">
+        <pd:type>com.tibco.pe.core.AssignActivity</pd:type>
+        <pd:resourceType>ae.activities.assignActivity</pd:resourceType>
+        <pd:x>500</pd:x>
+        <pd:y>700</pd:y>
+        <config>
+            <variableName>errorResponse</variableName>
+            <variableElement>
+                <xsd:element name="ErrorResponse">
+                    <xsd:complexType>
+                        <xsd:sequence>
+                            <xsd:element name="status" type="xsd:string"/>
+                            <xsd:element name="message" type="xsd:string"/>
+                        </xsd:sequence>
+                    </xsd:complexType>
+                </xsd:element>
+            </variableElement>
+        </config>
+        <pd:inputBindings>
+            <ErrorResponse>
+                <status>FAILED</status>
+                <message>Insufficient inventory for requested quantity</message>
+            </ErrorResponse>
+        </pd:inputBindings>
+    </pd:activity>
+    
+    <!-- Transitions -->
+    <pd:transition>
+        <pd:from>ReceiveOrder</pd:from>
+        <pd:to>ValidateCustomer</pd:to>
+        <pd:lineType>Default</pd:lineType>
+        <pd:lineColor>-16777216</pd:lineColor>
+        <pd:conditionType>always</pd:conditionType>
+    </pd:transition>
+    
+    <pd:transition>
+        <pd:from>ValidateCustomer</pd:from>
+        <pd:to>CheckInventory</pd:to>
+        <pd:lineType>Default</pd:lineType>
+        <pd:lineColor>-16777216</pd:lineColor>
+        <pd:conditionType>always</pd:conditionType>
+    </pd:transition>
+    
+    <pd:transition>
+        <pd:from>CheckInventory</pd:from>
+        <pd:to>ProcessPriority</pd:to>
+        <pd:lineType>Default</pd:lineType>
+        <pd:lineColor>-16777216</pd:lineColor>
+        <pd:conditionType>always</pd:conditionType>
+    </pd:transition>
+    
+    <pd:transition>
+        <pd:from>ProcessPriority</pd:from>
+        <pd:to>CreditCheck</pd:to>
+        <pd:lineType>Default</pd:lineType>
+        <pd:lineColor>-16777216</pd:lineColor>
+        <pd:conditionType>always</pd:conditionType>
+    </pd:transition>
+    
+    <pd:transition>
+        <pd:from>CreditCheck</pd:from>
+        <pd:to>ConditionalProcessor</pd:to>
+        <pd:lineType>Default</pd:lineType>
+        <pd:lineColor>-16777216</pd:lineColor>
+        <pd:conditionType>always</pd:conditionType>
+    </pd:transition>
+    
+    <pd:transition>
+        <pd:from>ProcessOrder</pd:from>
+        <pd:to>ProcessComplete</pd:to>
+        <pd:lineType>Default</pd:lineType>
+        <pd:lineColor>-65536</pd:lineColor>
+        <pd:conditionType>always</pd:conditionType>
+    </pd:transition>
+    
+    <pd:transition>
+        <pd:from>CreditRejection</pd:from>
+        <pd:to>ProcessComplete</pd:to>
+        <pd:lineType>Default</pd:lineType>
+        <pd:lineColor>-65536</pd:lineColor>
+        <pd:conditionType>error</pd:conditionType>
+    </pd:transition>
+    
+    <pd:transition>
+        <pd:from>InventoryError</pd:from>
+        <pd:to>ProcessComplete</pd:to>
+        <pd:lineType>Default</pd:lineType>
+        <pd:lineColor>-65536</pd:lineColor>
+        <pd:conditionType>error</pd:conditionType>
+    </pd:transition>
+    
+</pd:ProcessDefinition>
