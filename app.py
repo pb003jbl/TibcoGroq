@@ -311,7 +311,40 @@ The analyzer will examine:
     
     # Analyze button
     if st.button("🔬 Analyze Code Complexity", type="primary", use_container_width=True):
-
+        if not code_input.strip():
+            st.error("⚠️ Please provide TIBCO code to analyze")
+            return
+        
+        if not analysis_types:
+            st.error("⚠️ Please select at least one analysis area")
+            return
+        
+        with st.spinner(f"🤖 Analyzing code complexity using {model}..."):
+            try:
+                analysis_result = groq_client.analyze_complexity(
+                    code_input,
+                    analysis_types,
+                    detail_level,
+                    model
+                )
+                
+                if analysis_result:
+                    st.success("✅ Code analysis completed!")
+                    
+                    # Display results
+                    st.markdown("## 📈 Complexity Analysis Results")
+                    formatted_output = format_complexity_analysis(analysis_result)
+                    st.markdown(formatted_output)
+                    
+                    # Copy button
+                    if st.button("📋 Copy Analysis Results"):
+                        st.code(analysis_result, language="text")
+                        st.info("💡 Analysis results displayed above - copy manually from the code block")
+                else:
+                    st.error("❌ Failed to analyze code complexity. Please try again.")
+                    
+            except Exception as e:
+                st.error(f"❌ Error analyzing code: {str(e)}")
 
 def process_optimizer_tab(groq_client, model):
     st.header("🔧 Process Optimizer")
@@ -691,40 +724,5 @@ Migration assistance includes:
             except Exception as e:
                 st.error(f"❌ Error analyzing migration: {str(e)}")
 
-        if not code_input.strip():
-            st.error("⚠️ Please provide TIBCO code to analyze")
-            return
-        
-        if not analysis_types:
-            st.error("⚠️ Please select at least one analysis area")
-            return
-        
-        with st.spinner(f"🤖 Analyzing code complexity using {model}..."):
-            try:
-                analysis_result = groq_client.analyze_complexity(
-                    code_input,
-                    analysis_types,
-                    detail_level,
-                    model
-                )
-                
-                if analysis_result:
-                    st.success("✅ Code analysis completed!")
-                    
-                    # Display results
-                    st.markdown("## 📈 Complexity Analysis Results")
-                    formatted_output = format_complexity_analysis(analysis_result)
-                    st.markdown(formatted_output)
-                    
-                    # Copy button
-                    if st.button("📋 Copy Analysis Results"):
-                        st.code(analysis_result, language="text")
-                        st.info("💡 Analysis results displayed above - copy manually from the code block")
-                else:
-                    st.error("❌ Failed to analyze code complexity. Please try again.")
-                    
-            except Exception as e:
-                st.error(f"❌ Error analyzing code: {str(e)}")
-
-if __name__ == "__main__":
+        if __name__ == "__main__":
     main()
